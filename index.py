@@ -30,56 +30,17 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> List[npt.NDArra
 		circle=circle
 	)
 
+	layout_size = len(layout)
+
 	# expected cost associated to the 14 squares of the game (excluding the goal square)
 	Expec = np.array([0 for i in range(0, layout_size - 1)])
 	# choice of the best dice for each of the 14 squares (excluding the goal square)
 	Dice = np.array([1 for i in range(0, layout_size - 1)])
 	
-
-
-	# initialize every cell with 0 cost
-	V0 = [0 for i in range(0, 15)]
-
-
-	delta = INITIAL_DELTA
-	while delta > EPSILON:
-		Vk = V0.copy()
-		delta = 0
-
-		# start from the first cell
-		state_idx = 0
-
-
-		
-		# walk through the game map [0,...,14]
-		while state_idx < 15:
-			manage_trap()
-
-			costs = []
-
-			for dice in DICES.keys():
-
-				cost = 0
-				for move in DICES[dice]["moves"]:
-					# if circle map and player overstep the final cell, restart from start
-					if circle and state_idx + move > 14:
-						next_state_idx = 0
-					
-					elif state_idx + move >= 14:
-						won = True
-
-					cost += (1 / len(DICES[dice]["moves"])) * (??? + GAMMA * Vk[state_idx + move])
-
-			Vk[state_idx] = max(costs)
-	
 	return [np.array([]), np.array([])]
 
 def update_bellman_function(initial_cell, dice_type):
-	V = 1
-
-	dice = dices[dice_type]
-	for move in dice["moves"]:
-		make_move(initial_cell=initial_cell, move=move)
+	pass
 
 
 
