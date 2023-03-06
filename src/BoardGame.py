@@ -13,6 +13,13 @@ class TrapType(Enum):
 	PRISON = 3
 	GAMBLE = 4
 
+class CellType(Enum):
+	STARTING_CELL = 0
+	SLOW_LANE_FIRST_CELL = 3
+	SLOW_LANE_LAST_CELL = 9
+	FAST_LANE_FIRST_CELL = 10
+	FAST_LANE_LAST_CELL = 13
+
 class BoardGame:
 	def __init__(self, layout: npt.NDArray, dice: list[Die], circle: bool = False) -> None:
 		self.layout = layout
@@ -21,21 +28,29 @@ class BoardGame:
 		self.dice = dice
 		self.circle = circle
 
-		transition_matrix = np.ones((len(self.layout), len(self.dice)), dtype=float)
+		transition_matrix = np.zeros((len(self.layout), len(self.layout)), dtype=float)	
+	
+	def update_transition_matrix(self, transition_matrix: npt.NDArray, die: Die):
+		"""compute the transition matrix for each possible moves allowed by a given die
+
+		Args:
+			transition_matrix (npt.NDArray): _description_
+			die (Die): _description_
+		"""
 		# for each state (which corresponds to each possible cell)
-		for cell in range(0, len(self.layout)):
-			# for each action (which corresponds to each possible die)
-			for die in range(0, len(dice)):
-				transition_matrix[cell, die]
+		for initial_cell in range(0, len(self.layout)):
+			# for each possible move
+			for move in die.moves:
+				for destination_cell, probability in self.make_move(
+					initial_cell=initial_cell,
+					amount=move
+				):
+					transition_matrix[initial_cell, destination_cell] = probability
 
-	def compute_cost(self, cell: int, die: Die):
-		if cell < 0 or cell >= self.layout_size:
-			return
-
-		# for each possible move
-		for move in die.moves:
-			
-
+					# check if we are triggering next cell trap
+					if die.is_triggering_trap():
+						trap_cell = self.manage_trap(cell=destination_cell)
+						transition_matrix[destination_cell, trap_cell] = 1.0
 
 	def make_move(self, initial_cell: int, amount: int, probability: float = 1.0) -> list[tuple[int, float]]:
 		"""compute the next cell the agent will move to along with the probability to jump to this cell. 
@@ -67,7 +82,7 @@ class BoardGame:
 			return self.move_toward_final_cell(destination_cell=destination_cell, probability=probability)
 
 		# already on final cell, do not move agent
-		elif initial_cell == 14:
+		elif initial_cell == self.final_cell:
 			return [(initial_cell, probability)]
 		
 		else:
@@ -93,34 +108,31 @@ class BoardGame:
 			# ensure win if overtake the final cell
 			return [(min(self.final_cell, destination_cell), probability)]
 
-	def roll_dice(self, initial_state, dice) -> None:
-		np.random.choice(dice["moves"])
-
-	def manage_trap(self, layout: npt.NDArray, cell: int):
+	def manage_trap(self, cell: int):
 		if cell < 0 or cell > 14:
 			print("cell index should be in the range [0..14]")
 			return
 
 		# check the trap (i.e. reward)
-		trap_type = layout[cell]
+		trap_type = self.layout[cell]
 
 		if trap_type == TrapType.RESTART:
 			# teleport back to 1st square (restart)
-			cell = 0
+			return CellType.STARTING_CELL
 		elif trap_type == TrapType.PENALTY:
 			# teleport 3 steps backward (penalty)
 
 			# fast lane case
 			if cell >= 10 and cell <= 12:
-				cell = cell - 7 - 3
+				return cell - 7 - 3
 
-			cell = max(0, cell - 3)
+			return max(0, cell - 3)
 		elif trap_type == TrapType.PRISON:
 			# wait one turn before playing again (prison)
 			pass
 		elif trap_type == TrapType.GAMBLE:
 			# randomly teleport anywhere on the board (gamble)
-			cell = np.random.randint(0, 15)
+			return np.random.randint(0, 15)
 		else:
 			# no trap
 			return cell
