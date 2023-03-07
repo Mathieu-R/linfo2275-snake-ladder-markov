@@ -20,7 +20,7 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> List[npt.NDArra
 	Returns:
 		List[npt.NDArray, npt.NDArray]: a list containing two vectors as numpy arrays: Expec and Dice
 	"""
-	board = BoardGame(
+	boardGame = BoardGame(
 		layout=layout, 
 		dice=[
 			Die(type=DieType.SECURITY, moves=[0, 1], trap_triggering_probability=0.0),
@@ -30,13 +30,24 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> List[npt.NDArra
 		circle=circle
 	)
 
+	boardGame.compute_transition_matrices()
+
 	layout_size = len(layout)
 
 	# expected cost associated to the 14 squares of the game (excluding the goal square)
-	Expec = np.array([0 for i in range(0, layout_size - 1)])
+	Expec = np.zeros(layout_size - 1)
 	# choice of the best dice for each of the 14 squares (excluding the goal square)
-	Dice = np.array([1 for i in range(0, layout_size - 1)])
-	
+	Dice = np.ones(layout_size - 1, dtype=int)
+
+	delta = INITIAL_DELTA
+
+	while delta < EPSILON:
+		# for each cell (i.e. each state) 
+		for cell in range(0, layout_size):
+			# for each dice (i.e each strategegy/policy)
+			for die in boardGame.dice:
+				pass
+
 	return [np.array([]), np.array([])]
 
 def update_bellman_function(initial_cell, dice_type):

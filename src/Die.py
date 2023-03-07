@@ -15,9 +15,3 @@ class Die:
 	
 	def is_triggering_trap(self) -> int:
 		return np.random.choice([0, 1], p=[1 - self.trap_triggering_probability, self.trap_triggering_probability])
-	
-	def roll(self) -> tuple[int, int]:
-		next_move = np.random.choice(self.moves)
-		is_triggering_trap = np.random.choice([0, 1], p=[1 - self.trap_triggering_probability, self.trap_triggering_probability])
-
-		return (next_move, is_triggering_trap)
