@@ -4,6 +4,7 @@ import numpy.typing as npt
 from Die import Die
 from enum import Enum
 
+from utils.utils import find_indices
 from utils.constants import STARTING_CELL, SLOW_LANE_FIRST_CELL, SLOW_LANE_LAST_CELL, FAST_LANE_FIRST_CELL, FAST_LANE_LAST_CELL
 
 class TrapType(Enum):
@@ -78,8 +79,7 @@ class BoardGame:
 			else:
 				self.transition_matrices[die.type][destination_cell, max(0, destination_cell - 3)] += die.trap_triggering_probability
 		elif destination_trap_type == TrapType.PRISON:
-			# wait one turn before playing again (prison)
-			# TODO
+			# wait one turn before playing again (prison) (= extra_cost, see get_cost() method)
 			self.transition_matrices[die.type][initial_cell, destination_cell] += probability
 		elif destination_trap_type == TrapType.GAMBLE:
 			self.transition_matrices[die.type][initial_cell, destination_cell] += probability
@@ -100,10 +100,10 @@ class BoardGame:
 		# possibility to switch to a slow lane
 		if initial_cell == 2:
 			if amount == 1:
-				# go slow or fast lane with probability=0.5
-				return [(SLOW_LANE_FIRST_CELL, 0.5), (FAST_LANE_FIRST_CELL, 0.5)]
+				# go slow or fast lane with halved probability
+				return [(SLOW_LANE_FIRST_CELL, probability / 2), (FAST_LANE_FIRST_CELL, probability / 2)]
 			else:
-				# continue on fast lane with probability=1.0
+				# continue on fast lane 
 				return [(initial_cell + amount, probability)]
 		
 		elif initial_cell in [7, 8, 9]:
@@ -141,3 +141,23 @@ class BoardGame:
 		else:
 			# ensure win if overtake the final cell
 			return [(min(self.final_cell, destination_cell), probability)]
+
+	def get_cost(self, die: Die, cell: int) -> float:
+		"""compute the cost of an action given a state.
+		Each time we throw a dice (and make a potential move), we get +1 cost. 
+		We can get an extra cost if we could potentially trigger a trap and go the the jail.
+
+		Returns:
+			float: cost for an action (= a die type) given a state (= a cell type): c(a|s)
+		"""
+
+		# starting from a given cell, we need to get the cells indices where the jails are located
+		jail_indices = np.where(self.layout == TrapType.PRISON)[0]
+		# we multiply each probability to move to a jail cell by the probability of triggering trap
+		# and sum all these costs
+		extra_cost = sum(self.get_transition_matrix(die)[cell][jail_indices] * die.trap_triggering_probability)
+
+		return 1.0 + extra_cost
+
+	def get_transition_matrix(self, die: Die) -> npt.NDArray:
+		return self.transition_matrices[die.type]

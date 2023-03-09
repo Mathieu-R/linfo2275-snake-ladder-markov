@@ -5,10 +5,10 @@ import numpy.typing as npt
 from typing import List, Tuple
 from src.BoardGame import BoardGame
 from src.Die import Die, DieType
+
 from utils.constants import GAMMA, INITIAL_DELTA, EPSILON
 
-
-def markovDecision(layout: npt.NDArray, circle: bool = False) -> List[npt.NDArray]:
+def markovDecision(layout: npt.NDArray, circle: bool = False) -> list[npt.NDArray]:
 	"""launch the markov decision algorithm process to determine optimal strategy regarding 
 	the choice of the dice in the snake and ladder games using the "value iteration" method.
 
@@ -18,7 +18,7 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> List[npt.NDArra
 			by overstepping the final square (circle = false)
 
 	Returns:
-		List[npt.NDArray, npt.NDArray]: a list containing two vectors as numpy arrays: Expec and Dice
+		list[npt.NDArray]: a list containing two vectors as numpy arrays: Expec and Dice
 	"""
 	boardGame = BoardGame(
 		layout=layout, 
@@ -35,25 +35,44 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> List[npt.NDArra
 	layout_size = len(layout)
 
 	# expected cost associated to the 14 squares of the game (excluding the goal square)
+	# we start from the final state, setting all the values to 0
+	# this is V(s)
 	Expec = np.zeros(layout_size - 1)
 	# choice of the best dice for each of the 14 squares (excluding the goal square)
 	Dice = np.ones(layout_size - 1, dtype=int)
 
 	delta = INITIAL_DELTA
 
+
 	while delta < EPSILON:
-		# for each cell (i.e. each state) 
+		# V(s') = V(s)
+		last_bellman_optimality_conditions = Expec.copy()
+		# for each cell (i.e. each state ?)
+		# we compute the Bellman optimality conditions V(s)
 		for cell in range(0, layout_size):
-			# for each dice (i.e each strategegy/policy)
+			# we consider each dice (i.e each strategegy/policy/action)
+			# and retrieve the minimum
+			actions_set = []
 			for die in boardGame.dice:
-				pass
+				# c(a|s)
+				cost = boardGame.get_cost(die=die, cell=cell)
+				# c(a|s) + \sum_{all states s'} (P(s'|s,a) * V(s')) 
+				# = c(a|s) + (P(S'|s,a) \cdot V(S'))
+				bellman_value = cost + np.dot(boardGame.get_transition_matrix(die=die)[cell], last_bellman_optimality_conditions)
 
-	return [np.array([]), np.array([])]
+				actions_set.append(bellman_value)
+			
+			# get the index of the optimal conditions: V(s) (i.e. get the best dice type for each cell)
+			dice_type = np.argmin(actions_set)
+			# update the array of best dices
+			Dice[cell] = dice_type
+			# update the array of costs
+			Expec[cell] = actions_set[dice_type]
+		
+		# check if we converged toward epsilon
+		delta = max(Expec - last_bellman_optimality_conditions)
 
-def update_bellman_function(initial_cell, dice_type):
-	pass
-
-
+	return [Expec, Dice]
 
 def generate_layout():
 	layout = np.zeros((15))
