@@ -1,4 +1,3 @@
-from sys import last_traceback
 import numpy as np
 import numpy.typing as npt
 
@@ -37,14 +36,14 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> list[npt.NDArra
 	# expected cost associated to the 14 squares of the game (excluding the goal square)
 	# we start from the final state, setting all the values to 0
 	# this is V(s)
-	Expec = np.zeros(layout_size - 1)
+	Expec = np.zeros(layout_size)
 	# choice of the best dice for each of the 14 squares (excluding the goal square)
-	Dice = np.ones(layout_size - 1, dtype=int)
+	Dice = np.ones(layout_size, dtype=int)
 
 	delta = INITIAL_DELTA
 
 
-	while delta < EPSILON:
+	while delta > EPSILON:
 		# V(s') = V(s)
 		last_bellman_optimality_conditions = Expec.copy()
 		# for each cell (i.e. each state ?)
@@ -70,7 +69,8 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> list[npt.NDArra
 			Expec[cell] = actions_set[dice_type]
 		
 		# check if we converged toward epsilon
-		delta = max(Expec - last_bellman_optimality_conditions)
+		delta = max(abs(Expec - last_bellman_optimality_conditions))
+		print(delta)
 
 	return [Expec, Dice]
 
@@ -85,4 +85,7 @@ def generate_layout():
 if __name__ == "__main__":
 	#layout = np.array([0, 1, 2, 3, 1, 0, 0, 2, 1, 3, 0, 4, 0, 3, 0])
 	layout = generate_layout()
-	markovDecision(layout=layout, circle=True)
+	result = markovDecision(layout=layout, circle=True)
+
+	print(f"Expected cost for each cell: {result[0]}")
+	print(f"Best dice for each cell: {result[1]}")
