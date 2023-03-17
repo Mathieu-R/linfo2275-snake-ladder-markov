@@ -2,35 +2,33 @@ import numpy as np
 import numpy.typing as npt
 
 from typing import List, Tuple
-from src.BoardGame import BoardGame
+from src.MarkovDecisionProcess import MarkovDecisionProcess
+from src.Simulation import Simulation
 from src.Die import Die, DieType
 
-from utils.constants import GAMMA, INITIAL_DELTA, EPSILON
+from utils.common import DICE, StrategyType
+from utils.constants import INITIAL_DELTA, EPSILON, NUMBER_OF_SIMULATIONS
 
 def markovDecision(layout: npt.NDArray, circle: bool = False) -> list[npt.NDArray]:
 	"""launch the markov decision algorithm process to determine optimal strategy regarding 
 	the choice of the dice in the snake and ladder games using the "value iteration" method.
+	notation: state = a cell ([0..14]) ; action = a die ([SECURITY, NORMAL, RISKY])
 
 	Args:
-		layout (npt.NDArray): represents the layout of the game, each index represent a square and each value represent 
+		layout (npt.NDArray): represents the layout of the game, each index represents a cell (i.e. a state) and each value represents a trap type
 		circle (bool): indicate if the player must land exactly on the final square (circle = true) or still win 
 			by overstepping the final square (circle = false)
 
 	Returns:
 		list[npt.NDArray]: a list containing two vectors as numpy arrays: Expec and Dice
 	"""
-	boardGame = BoardGame(
+	mdp = MarkovDecisionProcess(
 		layout=layout, 
-		dice=[
-			Die(type=DieType.SECURITY, moves=[0, 1], trap_triggering_probability=0.0),
-			Die(type=DieType.NORMAL, moves=[0, 1, 2], trap_triggering_probability=0.5),
-			Die(type=DieType.RISKY, moves=[0, 1, 2, 3], trap_triggering_probability=1.0)
-		], 
+		dice=DICE, 
 		circle=circle
 	)
 
-	boardGame.compute_transition_matrices()
-
+	mdp.compute_transition_matrices()
 	layout_size = len(layout)
 
 	# expected cost associated to the 14 squares of the game (excluding the goal square)
@@ -42,37 +40,41 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> list[npt.NDArra
 
 	delta = INITIAL_DELTA
 
-
 	while delta > EPSILON:
 		# V(s') = V(s)
-		last_bellman_optimality_conditions = Expec.copy()
+		V_prev = Expec.copy()
+		
+		# "quality matrix" which contains for each possible action, the cost for each state
+		quality_matrix = np.zeros((len(mdp.dice), layout_size))
+		#print(quality_matrix)
+
 		# for each cell (i.e. each state ?)
 		# we compute the Bellman optimality conditions V(s)
-		for cell in range(0, layout_size):
+		for state in range(0, layout_size):
 			# we consider each dice (i.e each strategegy/policy/action)
 			# and retrieve the minimum
-			actions_set = []
-			for die in boardGame.dice:
+			for (idx, action) in enumerate(mdp.dice):
 				# c(a|s)
-				cost = boardGame.get_cost(die=die, cell=cell)
+				cost = mdp.get_cost(die=action, cell=state)
 				# c(a|s) + \sum_{all states s'} (P(s'|s,a) * V(s')) 
 				# = c(a|s) + (P(S'|s,a) \cdot V(S'))
-				bellman_value = cost + np.dot(boardGame.get_transition_matrix(die=die)[cell], last_bellman_optimality_conditions)
+				V = cost + np.dot(mdp.get_transition_matrix(die=action)[state], V_prev)
 
-				actions_set.append(bellman_value)
+				quality_matrix[idx] = V
+				print(quality_matrix)
 			
 			# get the index of the optimal conditions: V(s) (i.e. get the best dice type for each cell)
-			dice_type = np.argmin(actions_set)
+			dice_type = np.argmin(quality_matrix)
+			#print(dice_type)
 			# update the array of best dices
-			Dice[cell] = dice_type
+			Dice[state] = dice_type
 			# update the array of costs
-			Expec[cell] = actions_set[dice_type]
+			Expec[state] = quality_matrix[dice_type, state]
 		
 		# check if we converged toward epsilon
-		delta = max(abs(Expec - last_bellman_optimality_conditions))
-		print(delta)
+		delta = np.max(np.abs(Expec - V_prev))
 
-	return [Expec, Dice]
+	return [Expec[:-1], Dice[:-1]]
 
 def generate_layout():
 	layout = np.zeros((15))
@@ -83,9 +85,26 @@ def generate_layout():
 	return layout
 	
 if __name__ == "__main__":
+	layout = np.zeros((15))
 	#layout = np.array([0, 1, 2, 3, 1, 0, 0, 2, 1, 3, 0, 4, 0, 3, 0])
-	layout = generate_layout()
-	result = markovDecision(layout=layout, circle=True)
+	#layout = generate_layout()
+	circle = True
 
+	# optimal strategy
+	result = markovDecision(layout=layout, circle=circle)
+
+	print("Snake and Ladder simulation with MDP")
+	print("====================================")
+
+	print(f"Generated Layout: {layout}")
 	print(f"Expected cost for each cell: {result[0]}")
 	print(f"Best dice for each cell: {result[1]}")
+
+	# empirical simulation
+	simulation = Simulation(
+		layout=layout, 
+		dice=DICE,
+		circle=circle
+	)
+	empirical_costs = simulation.simulate(expec=result[0], strategy=StrategyType.OPTIMAL)
+	print(f"Empirical cost for each cell: {empirical_costs}")
