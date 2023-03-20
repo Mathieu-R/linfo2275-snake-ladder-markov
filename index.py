@@ -52,5 +52,5 @@ if __name__ == "__main__":
 		dice=DICE,
 		circle=circle
 	)
-	empirical_costs = simulation.simulate(expec=result[0], strategy=StrategyType.OPTIMAL)
+	empirical_costs = simulation.simulate(best_dice=result[1], strategy=StrategyType.OPTIMAL)
 	print(f"Empirical cost for each cell: {empirical_costs}")

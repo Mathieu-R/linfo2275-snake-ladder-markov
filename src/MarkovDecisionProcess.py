@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 
-from .Die import Die
+from .Die import Die, DieType
 
 from utils.common import CellType, TrapType
 from utils.constants import INITIAL_DELTA, EPSILON, STARTING_CELL, SLOW_LANE_FIRST_CELL, SLOW_LANE_LAST_CELL, FAST_LANE_FIRST_CELL, FAST_LANE_LAST_CELL
@@ -41,12 +41,7 @@ class MarkovDecisionProcess(BoardGame):
 				# we consider each dice (i.e each strategy/policy/action)
 				# and retrieve the minimum
 				for (idx, action) in enumerate(self.dice):
-					# c(a|s)
-					cost = self.get_cost(die=action, cell=state)
-					# V = c(a|s) + \sum_{all states s'} (P(s'|s,a) * V(s')) 
-					# 	= c(a|s) + ( P(S'|s,a) \cdot V(S') )
-					V = cost + np.dot(self.get_transition_matrix(die=action)[state], V_prev)
-
+					V = self.compute_bellman_optimal_value(self.get_transition_matrix(die=action)[state], V_prev)
 					quality_matrix[idx, state] = V
 				
 				# get the index of the optimal conditions: V(s) (i.e. get the best dice type for each cell)
@@ -58,16 +53,33 @@ class MarkovDecisionProcess(BoardGame):
 			
 			# check if we converged toward epsilon
 			delta = np.max(np.abs(Expec - V_prev))
-			print(delta)
 		
 		return [Expec[:-1], Dice[:-1]]
+
+	def compute_bellman_optimal_value(self, transition_matrix, prev):
+		V = 0.0
+
+		# V = c(a|s) + \sum_{all states s'} (P(s'|s,a) * V(s')) 
+		for (next_state, value) in enumerate(transition_matrix):
+			for (probability, cost) in value:
+				V += cost + (probability * prev[next_state])
+		
+		return V
 	
 	def compute_transition_matrices(self):
 		self.transition_matrices = {}
 
 		for die in self.dice:
-			self.transition_matrices[die.type] = np.zeros((len(self.layout), len(self.layout)))
+			self.transition_matrices[die.type] = self.init_transition_matrix()
 			self.update_transition_matrix(die=die)
+
+	def init_transition_matrix(self):
+		matrix = np.zeros((self.layout_size, self.layout_size), dtype=list)
+		for i in range(0, self.layout_size):
+			for j in range(0, self.layout_size):
+				matrix[i, j] = [(0.0, 0.0)]
+		
+		return matrix
 	
 	def update_transition_matrix(self, die: Die):
 		"""compute the transition matrix for each possible moves allowed by a given die
@@ -80,11 +92,14 @@ class MarkovDecisionProcess(BoardGame):
 		for initial_cell in range(0, len(self.layout)):
 			# for each possible move
 			for move in die.moves:
+				# get the next state along with its probability to move into
 				for destination_cell, probability in self.make_move(
 					initial_cell=initial_cell,
 					amount=move,
 					probability=1/len(die.moves)
 				):
+					# compute the cost and probability to move into the next state
+					# (taking trap into account)
 					self.compute_probabilities(die=die, initial_cell=initial_cell, destination_cell=destination_cell, probability=probability)
 
 	def make_move(self, initial_cell: int, amount: int, probability: float = 1.0) -> list[tuple[int, float]]:
@@ -162,27 +177,39 @@ class MarkovDecisionProcess(BoardGame):
 		# check the trap (i.e. reward)
 		destination_trap_type = int(self.layout[destination_cell])
 
-		if destination_trap_type == TrapType.NONE.value:
-			self.transition_matrices[die.type][initial_cell, destination_cell] += probability
+		move_and_trap_triggered_prob = probability * die.trap_triggering_probability
+		move_and_trap_not_triggered_prob = probability * (1 - die.trap_triggering_probability)
+
+		# we do not move unto a trap or we used the security dice
+		if destination_trap_type == TrapType.NONE.value or die.type == DieType.SECURITY.name:
+			self.transition_matrices[die.type][initial_cell, destination_cell] = [(probability, 1)]
+		
 		elif destination_trap_type == TrapType.RESTART.value:
-			self.transition_matrices[die.type][initial_cell, destination_cell] += probability * (1 - die.trap_triggering_probability)
+			self.transition_matrices[die.type][initial_cell, destination_cell] = [(move_and_trap_not_triggered_prob, 1)]
 			# teleport back to 1st square (restart)
-			self.transition_matrices[die.type][destination_cell, STARTING_CELL] += probability * die.trap_triggering_probability
+			self.transition_matrices[die.type][initial_cell, STARTING_CELL] = [(move_and_trap_triggered_prob, 1)]
+			
 		elif destination_trap_type == TrapType.PENALTY.value:
-			self.transition_matrices[die.type][initial_cell, destination_cell] += probability * (1 - die.trap_triggering_probability)
-			# teleport 3 steps backward (penalty)
-			# fast lane case
-			if destination_cell >= 10 and destination_cell <= 12:
-				self.transition_matrices[die.type][destination_cell, destination_cell - 7 - 3] += probability * die.trap_triggering_probability
-			else:
-				self.transition_matrices[die.type][destination_cell, max(0, destination_cell - 3)] += probability * die.trap_triggering_probability
+			self.transition_matrices[die.type][initial_cell, destination_cell] = [(move_and_trap_not_triggered_prob, 1)]
+			self.transition_matrices[die.type][initial_cell, self.teleport_3_step_backward(destination_cell=destination_cell)] = [(move_and_trap_triggered_prob, 1)]
+			
 		elif destination_trap_type == TrapType.PRISON.value:
-			# wait one turn before playing again (prison) (= extra_cost, see get_cost() method)
-			self.transition_matrices[die.type][initial_cell, destination_cell] += probability
+			# wait one turn before playing again (prison) (= extra cost if triggering jail trap)
+			self.transition_matrices[die.type][initial_cell, destination_cell] = [(move_and_trap_triggered_prob, 2), (move_and_trap_not_triggered_prob, 1)]
+
 		elif destination_trap_type == TrapType.GAMBLE:
-			self.transition_matrices[die.type][initial_cell, destination_cell] += probability * (1 - die.trap_triggering_probability)
-			# randomly teleport anywhere on the board (gamble)
-			self.transition_matrices[die.type][destination_cell, np.random.randint(0, 15)] += probability * die.trap_triggering_probability
+			self.transition_matrices[die.type][initial_cell, destination_cell] = [(move_and_trap_not_triggered_prob, 1)]
+			# randomly teleport anywhere on the board (with uniform probability)
+			for cell in range(0, self.layout_size):
+				self.transition_matrices[die.type][initial_cell, cell] = [((1 / self.layout_size) * move_and_trap_not_triggered_prob, 1)]
+
+	def teleport_3_step_backward(self, destination_cell: int):
+		# teleport 3 steps backward (penalty)
+		# fast lane case
+		if destination_cell >= 10 and destination_cell <= 12:
+			return destination_cell - 7 - 3
+		else:
+			return max(0, destination_cell - 3)
 
 	def get_cost(self, die: Die, cell: int) -> float:
 		"""compute the cost of an action given a state.

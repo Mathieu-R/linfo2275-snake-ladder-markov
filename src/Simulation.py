@@ -1,6 +1,8 @@
 import numpy as np
 import numpy.typing as npt
 
+from tqdm import tqdm
+
 from .BoardGame import BoardGame
 from .Die import Die, DieType
 
@@ -11,26 +13,33 @@ class Simulation(BoardGame):
 	def __init__(self, layout: npt.NDArray, dice: list[Die], circle: bool = False) -> None:
 		super().__init__(layout, dice, circle)
 	
-	def simulate(self, expec: npt.NDArray, strategy: StrategyType):
+	def simulate(self, best_dice: npt.NDArray, strategy: StrategyType, verbose=False):
 		layout_size = len(self.layout)
 		empirical_costs = np.zeros(layout_size)
 
-		for cell in range(0, layout_size):
+		for cell in tqdm(range(0, layout_size)):
 			total_cost = 0.0
 			for _ in range(0, NUMBER_OF_SIMULATIONS):
 				cost = 0.0
 				current_cell = cell
 
 				while (current_cell < self.final_cell):
-					optimal_die = expec[current_cell]
+					optimal_die = best_dice[current_cell]
 					die = self.dice[self.get_die_index(strategy=strategy, optimal_die=optimal_die)]
 					move = die.roll()
 
 					destination_cell = self.get_destination_cell(initial_cell=current_cell, amount=move)
 					destination_cell, in_jail = self.manage_trap(destination_cell=destination_cell, die=die)
-					cost += (1.0 + 1.0 if in_jail else 0.0)
+					next_cost = (2.0 if in_jail else 1.0)
+					
+					if verbose:
+						print("==================")
+						print(f"optimal_die: {optimal_die} -- random move: {move}")
+						print(f"initial cell: {current_cell} -- destination_cell: {destination_cell} -- in jail: {in_jail}")
+						print(f"cost: {cost}")
+						print("==================")
 				
-					cost += cost
+					cost += next_cost
 					current_cell = destination_cell
 				
 				total_cost += cost
