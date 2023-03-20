@@ -62,7 +62,7 @@ class MarkovDecisionProcess(BoardGame):
 		# V = c(a|s) + \sum_{all states s'} (P(s'|s,a) * V(s')) 
 		for (next_state, value) in enumerate(transition_matrix):
 			for (probability, cost) in value:
-				V += cost + (probability * prev[next_state])
+				V += probability * (cost + prev[next_state])
 		
 		return V
 	
