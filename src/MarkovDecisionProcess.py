@@ -115,7 +115,7 @@ class MarkovDecisionProcess(BoardGame):
 		"""
 		# possibility to switch to a slow lane
 		if initial_cell == 2:
-			if amount == 1:
+			if amount > 0:
 				# go slow or fast lane with halved probability
 				return [(SLOW_LANE_FIRST_CELL, probability / 2), (FAST_LANE_FIRST_CELL, probability / 2)]
 			else:
