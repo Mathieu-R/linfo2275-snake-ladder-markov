@@ -38,7 +38,7 @@ class MarkovDecisionProcess(BoardGame):
 			# for each cell (i.e. each state)
 			# we compute the Bellman optimality conditions V(s)
 			for state in range(0, self.layout_size):
-				# we consider each dice (i.e each strategy/policy/action)
+				# we consider each dice (i.e each action)
 				# and retrieve the minimum
 				for (idx, action) in enumerate(self.dice):
 					V = self.compute_bellman_optimal_value(self.get_transition_matrix(die=action)[state], V_prev)
@@ -56,12 +56,12 @@ class MarkovDecisionProcess(BoardGame):
 		
 		return [Expec[:-1], Dice[:-1]]
 
-	def compute_bellman_optimal_value(self, transition_matrix, prev):
+	def compute_bellman_optimal_value(self, possible_moves: npt.NDArray, prev: npt.NDArray):
 		V = 0.0
 
 		# V = c(a|s) + \sum_{all states s'} (P(s'|s,a) * V(s')) 
-		for (next_state, value) in enumerate(transition_matrix):
-			for (probability, cost) in value:
+		for (next_state, possible_costs) in enumerate(possible_moves):
+			for (probability, cost) in possible_costs:
 				V += probability * (cost + prev[next_state])
 		
 		return V
@@ -210,23 +210,6 @@ class MarkovDecisionProcess(BoardGame):
 			return destination_cell - 7 - 3
 		else:
 			return max(0, destination_cell - 3)
-
-	def get_cost(self, die: Die, cell: int) -> float:
-		"""compute the cost of an action given a state.
-		Each time we throw a dice (and make a potential move), we get +1 cost. 
-		We can get an extra cost if we could potentially trigger a trap and go the the jail.
-
-		Returns:
-			float: cost for an action (= a die type) given a state (= a cell type): c(a|s)
-		"""
-
-		# starting from a given cell, we need to get the cells indices where the jails are located
-		jail_indices = np.where(self.layout == TrapType.PRISON.value)[0]
-		# we multiply each probability to move to a jail cell by the probability of triggering trap
-		# and sum all these costs
-		extra_cost = np.sum(self.get_transition_matrix(die)[cell][jail_indices] * die.trap_triggering_probability)
-
-		return 1.0 + extra_cost
 
 	def get_transition_matrix(self, die: Die) -> npt.NDArray:
 		return self.transition_matrices[die.type]

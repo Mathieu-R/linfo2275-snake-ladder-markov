@@ -34,7 +34,7 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> list[npt.NDArra
 if __name__ == "__main__":
 	random_layout = generate_layout()
 	custom_layout = CUSTOM_LAYOUTS["NO_TRAPS"]
-	circle = False
+	circle = True
 
 	# optimal strategy
 	result = markovDecision(layout=custom_layout, circle=circle)
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 	empirical_costs = simulation.simulate(
 		best_dice=best_dice, 
 		strategy=StrategyType.OPTIMAL, 
-		number_of_simulations=100000
+		number_of_simulations=1000
 		)
 	print(f"Empirical cost for each cell: {empirical_costs}")
 
