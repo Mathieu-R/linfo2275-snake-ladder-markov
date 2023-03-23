@@ -4,7 +4,8 @@ import numpy.typing as npt
 from src.MarkovDecisionProcess import MarkovDecisionProcess
 from src.Simulation import Simulation
 
-from utils.utils import generate_layout
+from utils.plots import compare_costs
+from utils.layouts import generate_layout, CUSTOM_LAYOUTS
 from utils.common import DICE, StrategyType
 
 def markovDecision(layout: npt.NDArray, circle: bool = False) -> list[npt.NDArray]:
@@ -31,26 +32,38 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> list[npt.NDArra
 	return results
 	
 if __name__ == "__main__":
-	layout = np.zeros((15))
-	#layout = np.array([0, 1, 2, 3, 1, 0, 0, 2, 1, 3, 0, 4, 0, 3, 0])
-	#layout = generate_layout()
+	random_layout = generate_layout()
+	custom_layout = CUSTOM_LAYOUTS["NO_TRAPS"]
 	circle = True
 
 	# optimal strategy
-	result = markovDecision(layout=layout, circle=circle)
+	result = markovDecision(layout=custom_layout, circle=circle)
+	expected_costs = result[0]
+	best_dice = result[1]
 
 	print("Snake and Ladder simulation with MDP")
 	print("====================================")
 
-	print(f"Generated Layout: {layout}")
-	print(f"Expected cost for each cell: {result[0]}")
-	print(f"Best dice for each cell: {result[1]}")
+	print(f"Generated Layout: {custom_layout}")
+	print(f"Expected cost for each cell: {expected_costs}")
+	print(f"Best die for each cell: {best_dice}")
 
 	# empirical simulation
 	simulation = Simulation(
-		layout=layout, 
+		layout=custom_layout, 
 		dice=DICE,
 		circle=circle
 	)
-	empirical_costs = simulation.simulate(expec=result[0], strategy=StrategyType.OPTIMAL)
+	empirical_costs = simulation.simulate(
+		best_dice=best_dice, 
+		strategy=StrategyType.OPTIMAL, 
+		number_of_simulations=1000
+		)
 	print(f"Empirical cost for each cell: {empirical_costs}")
+
+	compare_costs(
+		layout=custom_layout,
+		theoretical_costs=expected_costs,
+		empirical_costs=empirical_costs,
+		title=f"comparison of costs (circle={circle})"
+	)

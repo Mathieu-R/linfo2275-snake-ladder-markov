@@ -17,4 +17,4 @@ class Die:
 		return np.random.choice(self.moves)
 	
 	def is_triggering_trap(self) -> int:
-		return np.random.choice([0, 1], p=[1 - self.trap_triggering_probability, self.trap_triggering_probability])
+		return np.random.choice([True, False], p=[self.trap_triggering_probability, 1 - self.trap_triggering_probability])
