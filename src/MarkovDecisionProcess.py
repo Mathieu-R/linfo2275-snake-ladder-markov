@@ -27,75 +27,71 @@ class MarkovDecisionProcess(BoardGame):
 		Dice = np.ones(self.layout_size, dtype=int)
 
 		delta = INITIAL_DELTA
+		iterations = 1
 
-		i = 1
-
-		while delta > EPSILON and i <= MAX_ITER:
+		while delta > EPSILON:
 			# V(s') = V(s)
 			V_prev = Expec.copy()
-			
-			# "quality matrix" which contains for each possible action, the cost for each state
-			quality_matrix = np.zeros((len(self.dice), self.layout_size))
+			#print(V_prev)
 
 			# for each cell (i.e. each state)
 			# we compute the Bellman optimality conditions V(s)
 			for state in range(0, self.layout_size):
-				# we consider each dice (i.e each action)
-				# and retrieve the minimum
+
+				# for each die, we keep track of the expected cost 
+				# of to reach the final state from the current state
+				current_state_costs = np.zeros((len(self.dice)))
+
+				# we consider each die (i.e each action)
 				for (idx, action) in enumerate(self.dice):
-					#print(self.get_transition_matrix(die=action))
 					V = self.compute_bellman_optimal_value(
-						possible_moves=self.get_transition_matrix(die=action)[state, :],
+						possible_moves=self.get_adjacent_matrix(die=action)[state],
 						prev=V_prev
 					)
-					quality_matrix[idx, state] = V
+					current_state_costs[idx] = V
 				
-				# get the index of the optimal conditions: V(s) (i.e. get the best dice type for each cell)
-				dice = np.argmin(quality_matrix[:, state])
+				# get the index of the optimal conditions: V(s) (i.e. get the best die type for each cell)
+				die = np.argmin(current_state_costs)
 				# update the array of best dices
-				Dice[state] = dice
+				Dice[state] = die
 				# update the array of costs
-				Expec[state] = quality_matrix[dice, state]
+				Expec[state] = current_state_costs[die]
+			
+			Expec[self.layout_size - 1] = 0.0
 			
 			# check if we converged toward epsilon
+			#print(np.subtract(Expec, V_prev))
 			delta = np.max(np.abs(np.subtract(Expec, V_prev)))
-			if (i >= 1):
-				break
-			i += 1
+			iterations += 1
 		
 		return [Expec[:-1], Dice[:-1]]
 
 	def compute_bellman_optimal_value(self, possible_moves: npt.NDArray, prev: npt.NDArray):
 		V = 0.0
 
-
 		# V = c(a|s) + \sum_{all states s'} (P(s'|s,a) * V(s')) 
-		for (next_state, probabilities_and_costs) in enumerate(possible_moves):
-			print(next_state, probabilities_and_costs)
-			for (probability, cost) in probabilities_and_costs:
-				V += probability * (cost + prev[next_state])
-
-		print(prev)
-		print(V)
+		for (next_state, probability, cost) in possible_moves:
+			V += probability * (cost + prev[next_state])
 
 		return V
 	
 	def compute_transition_matrices(self):
-		self.transition_matrices = {}
+		self.adjacent_matrices = {}
 
 		for die in self.dice:
-			self.transition_matrices[die.type] = self.init_transition_matrix()
-			self.update_transition_matrix(die=die)
+			# adjacent matrix is more convenient than a transition matrix
+			# for each state, we compute the possible next states reachables
+			# in a list of tuples (next_state, probability, cost)
+			self.adjacent_matrices[die.type] = self.init_adjacent_matrix()
+			self.update_adjacent_matrix(die=die)
 
-	def init_transition_matrix(self):
-		matrix = np.zeros((self.layout_size, self.layout_size), dtype=list)
-		for i in range(0, self.layout_size):
-			for j in range(0, self.layout_size):
-				matrix[i, j] = [(0.0, 0.0)]
-		
-		return matrix
+	def init_adjacent_matrix(self):
+		adjacent_matrix = []
+		for _ in range(0, self.layout_size):
+			adjacent_matrix.append([])
+		return adjacent_matrix
 	
-	def update_transition_matrix(self, die: Die):
+	def update_adjacent_matrix(self, die: Die):
 		"""compute the transition matrix for each possible moves allowed by a given die
 
 		Args:
@@ -196,26 +192,28 @@ class MarkovDecisionProcess(BoardGame):
 
 		# we did not move into a trap or we used the security dice
 		if destination_trap_type == TrapType.NONE.value or die.type == DieType.SECURITY.name:
-			self.transition_matrices[die.type][initial_cell, destination_cell] = [(probability, 1)]
+			self.adjacent_matrices[die.type][initial_cell].append((destination_cell, probability, 1))
 		
 		elif destination_trap_type == TrapType.RESTART.value:
-			self.transition_matrices[die.type][initial_cell, destination_cell] = [(move_and_trap_not_triggered_prob, 1)]
+			self.adjacent_matrices[die.type][initial_cell].append((destination_cell, move_and_trap_not_triggered_prob, 1))
 			# teleport back to 1st square (restart)
-			self.transition_matrices[die.type][initial_cell, STARTING_CELL] = [(move_and_trap_triggered_prob, 1)]
+			self.adjacent_matrices[die.type][initial_cell].append((STARTING_CELL, move_and_trap_triggered_prob, 1))
 			
 		elif destination_trap_type == TrapType.PENALTY.value:
-			self.transition_matrices[die.type][initial_cell, destination_cell] = [(move_and_trap_not_triggered_prob, 1)]
-			self.transition_matrices[die.type][initial_cell, self.teleport_3_step_backward(destination_cell=destination_cell)] = [(move_and_trap_triggered_prob, 1)]
+			self.adjacent_matrices[die.type][initial_cell].append((destination_cell, move_and_trap_not_triggered_prob, 1))
+			self.adjacent_matrices[die.type][initial_cell].append((self.teleport_3_step_backward(destination_cell=destination_cell), move_and_trap_triggered_prob, 1))
 			
 		elif destination_trap_type == TrapType.PRISON.value:
 			# wait one turn before playing again (prison) (= extra cost if triggering jail trap)
-			self.transition_matrices[die.type][initial_cell, destination_cell] = [(move_and_trap_triggered_prob, 2), (move_and_trap_not_triggered_prob, 1)]
+			self.adjacent_matrices[die.type][initial_cell].append((destination_cell, move_and_trap_triggered_prob, 2))
+
+			self.adjacent_matrices[die.type][initial_cell].append((destination_cell, move_and_trap_not_triggered_prob, 1))
 
 		elif destination_trap_type == TrapType.GAMBLE.value:
-			self.transition_matrices[die.type][initial_cell, destination_cell] = [(move_and_trap_not_triggered_prob, 1)]
+			self.adjacent_matrices[die.type][initial_cell].append((destination_cell, move_and_trap_not_triggered_prob, 1))
 			# randomly teleport anywhere on the board (with uniform probability)
 			for cell in range(0, self.layout_size):
-				self.transition_matrices[die.type][initial_cell, cell] = [((1 / self.layout_size) * move_and_trap_not_triggered_prob, 1)]
+				self.adjacent_matrices[die.type][initial_cell].append((cell, (1 / self.layout_size) * move_and_trap_not_triggered_prob, 1))
 
 	def teleport_3_step_backward(self, destination_cell: int):
 		# teleport 3 steps backward (penalty)
@@ -225,5 +223,5 @@ class MarkovDecisionProcess(BoardGame):
 		else:
 			return max(0, destination_cell - 3)
 
-	def get_transition_matrix(self, die: Die) -> npt.NDArray:
-		return self.transition_matrices[die.type]
+	def get_adjacent_matrix(self, die: Die) -> npt.NDArray:
+		return self.adjacent_matrices[die.type]
