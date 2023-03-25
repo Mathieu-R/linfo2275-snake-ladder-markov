@@ -4,7 +4,7 @@ import numpy.typing as npt
 from .Die import Die, DieType
 
 from utils.common import CellType, TrapType
-from utils.constants import INITIAL_DELTA, EPSILON, STARTING_CELL, SLOW_LANE_FIRST_CELL, SLOW_LANE_LAST_CELL, FAST_LANE_FIRST_CELL, FAST_LANE_LAST_CELL
+from utils.constants import INITIAL_DELTA, EPSILON, MAX_ITER, STARTING_CELL, SLOW_LANE_FIRST_CELL, SLOW_LANE_LAST_CELL, FAST_LANE_FIRST_CELL, FAST_LANE_LAST_CELL
 
 from .BoardGame import BoardGame
 
@@ -21,19 +21,21 @@ class MarkovDecisionProcess(BoardGame):
 		# expected cost associated to the 14 squares of the game (excluding the goal square)
 		# we start from the final state, setting all the values to 0
 		# this is V(s)
-		Expec = np.zeros(self.layout_size)
+		Expec = np.ones(self.layout_size)
+		Expec[self.layout_size - 1] = 0.0 # V(d) = 0
 		# choice of the best dice for each of the 14 squares (excluding the goal square)
 		Dice = np.ones(self.layout_size, dtype=int)
 
 		delta = INITIAL_DELTA
 
-		while delta > EPSILON:
+		i = 1
+
+		while delta > EPSILON and i <= MAX_ITER:
 			# V(s') = V(s)
 			V_prev = Expec.copy()
 			
 			# "quality matrix" which contains for each possible action, the cost for each state
 			quality_matrix = np.zeros((len(self.dice), self.layout_size))
-			#print(quality_matrix)
 
 			# for each cell (i.e. each state)
 			# we compute the Bellman optimality conditions V(s)
@@ -41,7 +43,11 @@ class MarkovDecisionProcess(BoardGame):
 				# we consider each dice (i.e each action)
 				# and retrieve the minimum
 				for (idx, action) in enumerate(self.dice):
-					V = self.compute_bellman_optimal_value(self.get_transition_matrix(die=action)[state], V_prev)
+					#print(self.get_transition_matrix(die=action))
+					V = self.compute_bellman_optimal_value(
+						possible_moves=self.get_transition_matrix(die=action)[state, :],
+						prev=V_prev
+					)
 					quality_matrix[idx, state] = V
 				
 				# get the index of the optimal conditions: V(s) (i.e. get the best dice type for each cell)
@@ -52,18 +58,26 @@ class MarkovDecisionProcess(BoardGame):
 				Expec[state] = quality_matrix[dice, state]
 			
 			# check if we converged toward epsilon
-			delta = np.max(np.abs(Expec - V_prev))
+			delta = np.max(np.abs(np.subtract(Expec, V_prev)))
+			if (i >= 1):
+				break
+			i += 1
 		
 		return [Expec[:-1], Dice[:-1]]
 
 	def compute_bellman_optimal_value(self, possible_moves: npt.NDArray, prev: npt.NDArray):
 		V = 0.0
 
+
 		# V = c(a|s) + \sum_{all states s'} (P(s'|s,a) * V(s')) 
-		for (next_state, possible_costs) in enumerate(possible_moves):
-			for (probability, cost) in possible_costs:
+		for (next_state, probabilities_and_costs) in enumerate(possible_moves):
+			print(next_state, probabilities_and_costs)
+			for (probability, cost) in probabilities_and_costs:
 				V += probability * (cost + prev[next_state])
-		
+
+		print(prev)
+		print(V)
+
 		return V
 	
 	def compute_transition_matrices(self):
@@ -113,14 +127,14 @@ class MarkovDecisionProcess(BoardGame):
 		Returns:
 			List[Tuple[next_cell: int, proba: float]]: a list of tuples, each one containing the next cell and the probability to jump into it.
 		"""
-		# possibility to switch to a slow lane
+		# we do not move
+		if amount == 0:
+			return [(initial_cell + amount, probability)]
+
+		# we arrived on switching cell, possibility to switch to a slow lane or a fast lane
 		if initial_cell == 2:
-			if amount > 0:
-				# go slow or fast lane with halved probability
-				return [(SLOW_LANE_FIRST_CELL, probability / 2), (FAST_LANE_FIRST_CELL, probability / 2)]
-			else:
-				# continue on fast lane 
-				return [(initial_cell + amount, probability)]
+			# go slow or fast lane with halved probability
+			return [(SLOW_LANE_FIRST_CELL + (amount - 1), probability / 2), (FAST_LANE_FIRST_CELL + (amount - 1), probability / 2)]
 		
 		elif initial_cell in [7, 8, 9]:
 			destination_cell = self.manage_slow_lane_special_cases(initial_cell=initial_cell, amount=amount)
@@ -180,7 +194,7 @@ class MarkovDecisionProcess(BoardGame):
 		move_and_trap_triggered_prob = probability * die.trap_triggering_probability
 		move_and_trap_not_triggered_prob = probability * (1 - die.trap_triggering_probability)
 
-		# we do not move unto a trap or we used the security dice
+		# we did not move into a trap or we used the security dice
 		if destination_trap_type == TrapType.NONE.value or die.type == DieType.SECURITY.name:
 			self.transition_matrices[die.type][initial_cell, destination_cell] = [(probability, 1)]
 		
@@ -197,7 +211,7 @@ class MarkovDecisionProcess(BoardGame):
 			# wait one turn before playing again (prison) (= extra cost if triggering jail trap)
 			self.transition_matrices[die.type][initial_cell, destination_cell] = [(move_and_trap_triggered_prob, 2), (move_and_trap_not_triggered_prob, 1)]
 
-		elif destination_trap_type == TrapType.GAMBLE:
+		elif destination_trap_type == TrapType.GAMBLE.value:
 			self.transition_matrices[die.type][initial_cell, destination_cell] = [(move_and_trap_not_triggered_prob, 1)]
 			# randomly teleport anywhere on the board (with uniform probability)
 			for cell in range(0, self.layout_size):

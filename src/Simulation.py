@@ -105,16 +105,17 @@ class Simulation(BoardGame):
 			print("initial cell should be in the range [0..14]")
 			raise ValueError()
 
-		# possibility to switch to a slow lane
+		# we do not move
+		if amount == 0:
+			return initial_cell + amount
+
+		# we arrived on switching cell, possibility to switch to a slow lane or a fast lane
 		if initial_cell == 2:
-			if amount > 0:
-				go_fast_lane = np.random.choice([True, False])
-				if (go_fast_lane):
-					return FAST_LANE_FIRST_CELL + (amount - 1)
-				else:
-					return SLOW_LANE_FIRST_CELL + (amount - 1)
+			go_fast_lane = np.random.choice([True, False])
+			if (go_fast_lane):
+				return FAST_LANE_FIRST_CELL + (amount - 1)
 			else:
-				return initial_cell
+				return SLOW_LANE_FIRST_CELL + (amount - 1)
 		
 		elif initial_cell in [7, 8, 9]:
 			destination_cell = self.manage_slow_lane_special_cases(initial_cell=initial_cell, amount=amount)
