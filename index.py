@@ -35,7 +35,7 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> list[npt.NDArra
 	results = mdp.launch_iteration_value()
 	return results
 
-def compare_costs(layout: npt.NDArray, best_dice, expected_costs, simulations: int, circle: bool):
+def compare_costs(layout_name: str, layout: npt.NDArray, best_dice, expected_costs, simulations: int, circle: bool):
 	# empirical simulation
 	simulation = Simulation(
 		layout=layout, 
@@ -53,10 +53,11 @@ def compare_costs(layout: npt.NDArray, best_dice, expected_costs, simulations: i
 		layout=layout,
 		theoretical_costs=expected_costs,
 		empirical_costs=empirical_costs,
-		title=f"Comparison of costs (circle={circle})"
+		title=f"Comparison of costs (circle={circle})",
+		subtitle=f"Layout: {layout_name}"
 	)
 
-def compare_strategies(layout: npt.NDArray, best_dice, expected_costs, simulations: int, circle: bool):
+def compare_strategies(layout_name: str, layout: npt.NDArray, best_dice, expected_costs, simulations: int, circle: bool):
 	# empirical simulation
 	simulation = Simulation(
 		layout=layout, 
@@ -106,33 +107,64 @@ def compare_strategies(layout: npt.NDArray, best_dice, expected_costs, simulatio
 		number_of_simulations=simulations
 		)
 
+	# check: https://matplotlib.org/stable/gallery/color/named_colors.html#sphx-glr-gallery-color-named-colors-py for a list of colors
 	suboptimal_costs = {
-		"security": security_costs,
-		"normal": normal_costs,
-		"security_normal": security_normal_costs,
-		"security_risky": security_risky_costs,
-		"normal_risky": normal_risky_costs,
-		"random": random_costs
+		"security": {
+			"data": security_costs,
+			"color": "forestgreen",
+			"label": "security die"
+		},
+		"normal": {
+			"data": normal_costs,
+			"color": "darkorange",
+			"label": "normal die"
+		},
+		"risky": {
+			"data": risky_costs,
+			"color": "red",
+			"label": "risky die"
+		},
+		"security_normal": {
+			"data": security_normal_costs,
+			"color": "yellowgreen",
+			"label": "security & normal dice"
+		},
+		"security_risky": {
+			"data": security_risky_costs,
+			"color": "teal",
+			"label": "security & risky dice"
+		},
+		"normal_risky": {
+			"data": normal_risky_costs,
+			"color": "chocolate",
+			"label": "normal & risky dice"
+		},
+		"random": {
+			"data": random_costs,
+			"color": "silver",
+			"label": "random die"
+		}
 	}
 	
 	compare_strategies_plot(
 		layout=layout,
 		optimal_costs=expected_costs,
 		suboptimal_costs=suboptimal_costs,
-		title=f"Comparison with suboptimal strategies (circle={circle})"
+		title=f"Comparison with suboptimal strategies (circle={circle})",
+		subtitle=f"Layout: {layout_name}"
 	)
 
 @click.command()
 @click.option(
 	"--layout", "-l",
-	type=click.Choice(["random", "NO_TRAPS", "JAILS_ON_FAST_LANE", "GAMBLE_EVERYWHERE", "NO_TRAPS_SLOW_LANE"]),
+	type=click.Choice(["RANDOM", "NO_TRAPS", "JAILS_ON_FAST_LANE", "GAMBLE_EVERYWHERE", "NO_TRAPS_SLOW_LANE"]),
 	default="NO_TRAPS",
 	show_default=True,
 	help="Type of game board"
 )
 @click.option(
 	"--simulations", "-s",
-	is_flag=True,
+	type=click.INT,
 	default=10000,
 	show_default=True,
 	help="Number of simulations to run"
@@ -143,17 +175,17 @@ def compare_strategies(layout: npt.NDArray, best_dice, expected_costs, simulatio
 	help="Make the board circle"
 )
 @click.option(
-	"--compare_costs", "-cc",
+	"--mdp_relevance_plot", "-mdp",
 	is_flag=True,
 	help="Show the relevance of MDP by empirical simulations."
 )
 @click.option(
-	"--compare_strategies", "-cs",
+	"--strategies_plot", "-sp",
 	is_flag=True,
 	help="Compare the optimal strategy with suboptimal ones."
 )
-def main(layout, simulations, circle, compare_strategies):
-	if layout == "random":
+def main(layout, simulations, circle, mdp_relevance_plot, strategies_plot):
+	if layout == "RANDOM":
 		custom_layout = generate_layout()
 	else:
 		custom_layout = CUSTOM_LAYOUTS[layout]
@@ -170,8 +202,9 @@ def main(layout, simulations, circle, compare_strategies):
 	print(f"Expected cost for each cell: {expected_costs}")
 	print(f"Best die for each cell: {best_dice}")
 
-	if compare_costs:
+	if mdp_relevance_plot:
 		compare_costs(
+			layout_name=layout,
 			layout=custom_layout,
 			best_dice=best_dice,
 			expected_costs=expected_costs,
@@ -179,9 +212,14 @@ def main(layout, simulations, circle, compare_strategies):
 			circle=circle
 		)
 	
-	elif compare_strategies:
+	elif strategies_plot:
 		compare_strategies(
-
+			layout_name=layout,
+			layout=custom_layout,
+			best_dice=best_dice,
+			expected_costs=expected_costs,
+			simulations=simulations,
+			circle=circle
 		)
 
 if __name__ == "__main__":

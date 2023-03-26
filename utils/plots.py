@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from matplotlib import ticker
 
-def compare_costs_plot(layout: npt.NDArray, theoretical_costs: npt.NDArray, empirical_costs: npt.NDArray, title: str):
+def compare_costs_plot(layout: npt.NDArray, theoretical_costs: npt.NDArray, empirical_costs: npt.NDArray, title: str, subtitle: str):
 	fig, ax = plt.subplots(layout="constrained")
 
 	n = len(layout)
@@ -19,21 +19,22 @@ def compare_costs_plot(layout: npt.NDArray, theoretical_costs: npt.NDArray, empi
 	ax.set_xlabel("State")
 	ax.set_ylabel("Expected cost")
 	ax.set_title(title)
+	ax.set_sub
 
 	ax.legend(loc="upper right", ncols=3)
 
 	plt.show()
 
-def compare_strategies_plot(layout: npt.NDArray, optimal_costs: npt.NDArray, suboptimal_costs: dict, title: str):
+def compare_strategies_plot(layout: npt.NDArray, optimal_costs: npt.NDArray, suboptimal_costs: dict, title: str, subtitle: str):
 	fig, ax = plt.subplots(layout="constrained")
 
 	n = len(layout)
 	x = np.arange(1, n)
 
-	ax.plot(x, optimal_costs, color="royalblue", label="optimal")
+	ax.plot(x, optimal_costs, ls="--", color="royalblue", label="optimal", zorder=-1)
 
-	for (label, costs) in suboptimal_costs.items():
-		ax.plot(x, costs, label=label)
+	for costs in suboptimal_costs.values():
+		ax.plot(x, costs["data"], color=costs["color"], label=costs["label"])
 
 	ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
 
