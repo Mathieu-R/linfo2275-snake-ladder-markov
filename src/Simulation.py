@@ -193,7 +193,7 @@ class Simulation(BoardGame):
 		elif trap_type == TrapType.PRISON.value:
 			return (destination_cell, True)
 
-		elif trap_type == TrapType.GAMBLE:
+		elif trap_type == TrapType.GAMBLE.value:
 			# randomly teleport anywhere on the board (gamble)
 			return (np.random.randint(0, 15), False)
 

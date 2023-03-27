@@ -32,7 +32,6 @@ class MarkovDecisionProcess(BoardGame):
 		while delta > EPSILON:
 			# V(s') = V(s)
 			V_prev = Expec.copy()
-			#print(V_prev)
 
 			# for each cell (i.e. each state)
 			# we compute the Bellman optimality conditions V(s)
