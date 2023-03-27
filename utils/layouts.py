@@ -8,7 +8,7 @@ def generate_layout():
 		# generate a cell of type between 0 and 4
 		# first and last cell are excluded
 		layout[i] = np.random.randint(0, 5)
-	layout[1:14] = 4
+	#layout = np.array([0, 1, 1, 4, 2, 1, 0, 1, 0, 1, 0, 1, 0, 4, 0])
 	return layout
 
 def layout_jails_on_fast_lane():
