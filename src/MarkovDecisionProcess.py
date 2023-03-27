@@ -204,16 +204,16 @@ class MarkovDecisionProcess(BoardGame):
 			self.adjacent_matrices[die.type][initial_cell].append((self.teleport_3_step_backward(destination_cell=destination_cell), move_and_trap_triggered_prob, 1))
 			
 		elif destination_trap_type == TrapType.PRISON.value:
+			self.adjacent_matrices[die.type][initial_cell].append((destination_cell, move_and_trap_not_triggered_prob, 1))
+
 			# wait one turn before playing again (prison) (= extra cost if triggering jail trap)
 			self.adjacent_matrices[die.type][initial_cell].append((destination_cell, move_and_trap_triggered_prob, 2))
-
-			self.adjacent_matrices[die.type][initial_cell].append((destination_cell, move_and_trap_not_triggered_prob, 1))
 
 		elif destination_trap_type == TrapType.GAMBLE.value:
 			self.adjacent_matrices[die.type][initial_cell].append((destination_cell, move_and_trap_not_triggered_prob, 1))
 			# randomly teleport anywhere on the board (with uniform probability)
 			for cell in range(0, self.layout_size):
-				self.adjacent_matrices[die.type][initial_cell].append((cell, (1 / self.layout_size) * move_and_trap_not_triggered_prob, 1))
+				self.adjacent_matrices[die.type][initial_cell].append((cell, (1 / self.layout_size) * move_and_trap_triggered_prob, 1))
 
 	def teleport_3_step_backward(self, destination_cell: int):
 		# teleport 3 steps backward (penalty)

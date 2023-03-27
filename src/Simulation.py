@@ -195,7 +195,7 @@ class Simulation(BoardGame):
 
 		elif trap_type == TrapType.GAMBLE:
 			# randomly teleport anywhere on the board (gamble)
-			return (np.random.randint(0, 15), True)
+			return (np.random.randint(0, 15), False)
 
 		else:
 			# no trap

@@ -19,7 +19,6 @@ def compare_costs_plot(layout: npt.NDArray, theoretical_costs: npt.NDArray, empi
 	ax.set_xlabel("State")
 	ax.set_ylabel("Expected cost")
 	ax.set_title(title)
-	ax.set_sub
 
 	ax.legend(loc="upper right", ncols=3)
 
