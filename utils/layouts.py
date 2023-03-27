@@ -3,11 +3,12 @@ import numpy as np
 from .common import TrapType
 
 def generate_layout():
-	layout = np.zeros((15))
+	layout = np.zeros((15), dtype=int)
 	for i in range(1, 14):
 		# generate a cell of type between 0 and 4
 		# first and last cell are excluded
 		layout[i] = np.random.randint(0, 5)
+	#layout = np.array([0, 1, 1, 4, 2, 1, 0, 1, 0, 1, 0, 1, 0, 4, 0])
 	return layout
 
 def layout_jails_on_fast_lane():
@@ -16,7 +17,7 @@ def layout_jails_on_fast_lane():
 	return layout
 
 def layout_gamble_everywhere():
-	layout = np.zeros((15))
+	layout = np.zeros((15), dtype=int)
 	layout[1:13] = TrapType.GAMBLE.value
 	return layout
 
