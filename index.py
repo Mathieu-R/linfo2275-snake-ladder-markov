@@ -31,7 +31,7 @@ def markovDecision(layout: npt.NDArray, circle: bool = False) -> list[npt.NDArra
 		circle=circle
 	)
 
-	mdp.compute_transition_matrices()
+	mdp.compute_adjacent_matrices()
 	results = mdp.launch_iteration_value()
 	return results
 

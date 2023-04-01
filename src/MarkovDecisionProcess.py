@@ -13,10 +13,10 @@ class MarkovDecisionProcess(BoardGame):
 		super().__init__(layout, dice, circle)
 
 	def launch_iteration_value(self) -> list[npt.NDArray]:
-		"""_summary_
+		"""Launch the iteration value algorithm for Markov Decision Process
 
 		Returns:
-			list[npt.NDArray]: _description_
+			list[npt.NDArray]: a list containing two vectors as numpy arrays: Expec and Dice
 		"""
 		# expected cost associated to the 14 squares of the game (excluding the goal square)
 		# we start from the final state, setting all the values to 0
@@ -74,7 +74,7 @@ class MarkovDecisionProcess(BoardGame):
 
 		return V
 	
-	def compute_transition_matrices(self):
+	def compute_adjacent_matrices(self):
 		self.adjacent_matrices = {}
 
 		for die in self.dice:
@@ -91,11 +91,10 @@ class MarkovDecisionProcess(BoardGame):
 		return adjacent_matrix
 	
 	def update_adjacent_matrix(self, die: Die):
-		"""compute the transition matrix for each possible moves allowed by a given die
+		"""update the adjacent matrix for each possible moves allowed by a given die.
 
 		Args:
-			transition_matrix (npt.NDArray): _description_
-			die (Die): _description_
+			die (Die): the given die.
 		"""
 		# for each state (which corresponds to each possible cell)
 		for initial_cell in range(0, len(self.layout)):
@@ -168,16 +167,16 @@ class MarkovDecisionProcess(BoardGame):
 			return [(min(self.final_cell, destination_cell), probability)]
 
 	def compute_probabilities(self, die: Die, initial_cell: int, destination_cell: int, probability: float) -> None:
-		"""_summary_
+		"""compute the probability as well as the cost of every combination of transition from an initial cell to a destination cell and from a destination cell to any other cell (in case of triggering a trap).
 
 		Args:
-			die (Die): _description_
-			initial_cell (int): _description_
-			destination_cell (int): _description_
-			probability (float): _description_
+			die (Die): a given die
+			initial_cell (int): the starting cell
+			destination_cell (int): the destination cell after the move
+			probability (float): the probability of that transition to happen
 
 		Raises:
-			ValueError: _description_
+			ValueError: if the destination cell is not in the board.
 		"""
 		if destination_cell < 0 or destination_cell > 14:
 			print("destination cell should be in the range [0..14]")
