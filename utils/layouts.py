@@ -13,19 +13,21 @@ def generate_layout():
 
 def layout_jails_on_fast_lane():
 	layout = generate_layout()
-	layout[10:13] = TrapType.PRISON.value
+	layout[10:14] = TrapType.PRISON.value
+	#return np.array([0, 1, 4, 0, 3, 0, 2, 0, 0, 0, 3, 3, 3, 3, 0])
 	return layout
+
 
 def layout_gamble_everywhere():
 	layout = np.zeros((15), dtype=int)
-	layout[1:13] = TrapType.GAMBLE.value
+	layout[1:14] = TrapType.GAMBLE.value
 	return layout
 
 def layout_traps_everywhere_except_slow_lane():
-	layout = np.zeros((15))
+	layout = np.zeros((15), dtype=int)
 	layout[1] = TrapType.PRISON.value
 	layout[2] = TrapType.RESTART.value
-	layout[3:9] = TrapType.NONE.value
+	layout[3:10] = TrapType.NONE.value
 	layout[10] = TrapType.PENALTY.value
 	layout[11] = TrapType.GAMBLE.value
 	layout[12] = TrapType.RESTART.value
